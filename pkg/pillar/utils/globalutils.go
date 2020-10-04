@@ -7,6 +7,8 @@ package utils
 
 import (
 	"os"
+	"io/ioutil"
+	"strconv"
 
 	"github.com/lf-edge/eve/pkg/pillar/base"
 	"github.com/lf-edge/eve/pkg/pillar/pubsub"
@@ -85,3 +87,11 @@ func RoundToMbytes(byteCount uint64) uint64 {
 
 	return (byteCount + mbyte/2) / mbyte
 }
+
+func SetOomScore(pid int, oomScore int32) error {
+	filename := "/proc/" + strconv.Itoa(pid) + "/oom_score_adj"
+	oomScoreStr := strconv.Itoa(int(oomScore))
+
+	return ioutil.WriteFile(filename, []byte(oomScoreStr), 0600)
+}
+
