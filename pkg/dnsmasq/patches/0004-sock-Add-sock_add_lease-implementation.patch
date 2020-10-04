@@ -1,0 +1,98 @@
+From 28ab5ee14668eba33976b0e2edcc802dfd14776c Mon Sep 17 00:00:00 2001
+From: Sergey Temerkhanov <s.temerkhanov@gmail.com>
+Date: Mon, 5 Oct 2020 13:23:23 -0400
+Subject: [PATCH 4/4] sock: Add sock_add_lease() implementation
+
+Implement adding leases over the control socket connection
+
+Signed-off-by: Sergey Temerkhanov <s.temerkhanov@gmail.com>
+---
+ src/sock.c | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 57 insertions(+), 2 deletions(-)
+
+diff --git a/src/sock.c b/src/sock.c
+index 85a155e..d284f4b 100644
+--- a/src/sock.c
++++ b/src/sock.c
+@@ -75,7 +75,7 @@ int sock_del_lease(char *args, time_t now)
+ #endif
+   else {
+     my_syslog(LOG_INFO, _("No lease for address %s"), ipaddr);
+-    return -1;
++    return -ENOENT;
+   }
+ 
+   if (lease)
+@@ -85,13 +85,68 @@ int sock_del_lease(char *args, time_t now)
+       lease_update_dns(0);
+     }
+   else
+-    ret = -1;
++    ret = -ENOENT;
++
++  return ret;
++}
++
++int sock_add_lease(char *args, time_t now)
++{
++  union all_addr addr;
++  struct dhcp_lease *lease;
++  int ret = 0;
++  char *str = strdupa(args);
++  unsigned char hw_addr_hex[DHCP_CHADDR_MAX];
++  int hw_addr_len = 0, hw_type = 0;
++
++  char *ipaddr = strtok_r(str, " ", &str);
++  char *hwaddr = strtok_r(str, " ", &str);
++  char *hostname = strtok_r(str, " ", &str);
++
++  if (!ipaddr || !hwaddr) {
++    my_syslog(LOG_INFO, _("Invalid parameters for adding a lease"));
++    return -ENOENT;
++  }
++
++  if (inet_pton(AF_INET, ipaddr, &addr.addr4)) {
++    lease = lease_find_by_addr(addr.addr4);
++    if (!lease)
++      lease = lease4_allocate(addr.addr4);
++  }
++#ifdef HAVE_DHCP6
++  else if (inet_pton(AF_INET6, ipaddr, &addr.addr6)) {
++    lease = lease6_find_by_addr(&addr.addr6, 128, 0);
++    if (!lease)
++      lease = lease6_allocate(&addr.addr6, LEASE_NA);
++  }
++#endif
++  else {
++    my_syslog(LOG_INFO, _("Invalid address %s"), ipaddr);
++    return -EINVAL;
++  }
++
++  if (lease)
++    {
++      hw_addr_len = parse_hex(hwaddr, hw_addr_hex, DHCP_CHADDR_MAX, NULL, &hw_type);
++      if (!hw_type && hw_addr_len)
++        hw_type = ARPHRD_ETHER;
++      lease_set_hwaddr(lease, hw_addr_hex, NULL, hw_addr_len, hw_type, 0, now, 0);
++      if (hostname)
++        lease_set_hostname(lease, hostname, 0, get_domain(lease->addr), NULL);
++      lease_update_file(now);
++      lease_update_dns(0);
++    }
++  else
++    ret = -ENOENT;
+ 
+   return ret;
+ }
+ 
+ const struct command handlers[] = {
+   {.cmd = "delete", .handler = sock_del_lease},
++  /* delete <IP address> */
++  {.cmd = "add", .handler = sock_add_lease},
++  /* add <IP address> <hw address> <hostname>*/
+   {.cmd = NULL, .handler = NULL},
+ };
+ 
+-- 
+2.26.2
+

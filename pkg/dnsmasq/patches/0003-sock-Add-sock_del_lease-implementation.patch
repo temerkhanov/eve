@@ -1,0 +1,58 @@
+From 0d9b22ee433829df5d3b3eb9142fe217cd5c2b05 Mon Sep 17 00:00:00 2001
+From: Sergey Temerkhanov <s.temerkhanov@gmail.com>
+Date: Mon, 5 Oct 2020 14:13:20 -0400
+Subject: [PATCH 3/4] sock: Add sock_del_lease() implementation
+
+Implement lease deletion over the control socket connection
+
+Signed-off-by: Sergey Temerkhanov <s.temerkhanov@gmail.com>
+---
+ src/sock.c | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+
+diff --git a/src/sock.c b/src/sock.c
+index 2bfc69b..85a155e 100644
+--- a/src/sock.c
++++ b/src/sock.c
+@@ -60,7 +60,38 @@ struct command {
+   int (*handler)(char *args, time_t now);
+ };
+ 
++int sock_del_lease(char *args, time_t now)
++{
++  char *ipaddr = args;
++  union all_addr addr;
++  struct dhcp_lease *lease;
++  int ret = 0;
++
++  if (inet_pton(AF_INET, ipaddr, &addr.addr4))
++    lease = lease_find_by_addr(addr.addr4);
++#ifdef HAVE_DHCP6
++  else if (inet_pton(AF_INET6, ipaddr, &addr.addr6))
++    lease = lease6_find_by_addr(&addr.addr6, 128, 0);
++#endif
++  else {
++    my_syslog(LOG_INFO, _("No lease for address %s"), ipaddr);
++    return -1;
++  }
++
++  if (lease)
++    {
++      lease_prune(lease, now);
++      lease_update_file(now);
++      lease_update_dns(0);
++    }
++  else
++    ret = -1;
++
++  return ret;
++}
++
+ const struct command handlers[] = {
++  {.cmd = "delete", .handler = sock_del_lease},
+   {.cmd = NULL, .handler = NULL},
+ };
+ 
+-- 
+2.26.2
+
