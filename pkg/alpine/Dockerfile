@@ -1,8 +1,8 @@
-ARG ALPINE_VERSION=3.9
-FROM lfedge/eve-alpine:ad1020939fb59dbdaa558a3da99649d81e341cac AS cache
+ARG ALPINE_VERSION=3.12
+FROM lfedge/eve-alpine:6dacb6d8c5f218064bd6a672af4c6c1c3c090cf4 AS cache
 
 FROM alpine:${ALPINE_VERSION} AS mirror
-ARG ALPINE_VERSION=3.9
+ARG ALPINE_VERSION=3.12
 
 # pull packages from a *previous* mirror
 COPY --from=cache /mirror /mirror
@@ -16,7 +16,7 @@ COPY mirrors /tmp/mirrors/
 COPY build-cache.sh /bin/
 
 # install abuild for signing (which requires gcc as well)
-RUN apk add --no-cache abuild gcc
+RUN apk add --no-cache abuild gcc sudo
 
 # install a new key into /etc/apk/keys
 RUN abuild-keygen -a -i -n

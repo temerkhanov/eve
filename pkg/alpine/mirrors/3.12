@@ -13,7 +13,7 @@ build-base
 busybox
 ca-certificates-cacert
 coreutils
-cryptsetup1-dev
+cryptsetup-dev
 curl
 curl-dev
 dev86
@@ -84,6 +84,7 @@ sgdisk
 socat
 squashfs-tools
 ssl_client
+sudo
 tar
 texinfo
 util-linux
