@@ -4,19 +4,19 @@
 #   /EFI/BOOT/grub.cfg - Chainloads main bootloader
 #   /UsbInvocationScript.txt - Enables USB boot on Dell 3000 series
 #
-ARG BUILDER=lfedge/eve-alpine:ac1dc159510afa61334222cedf085c7730e4583c
+ARG BUILDER=lfedge/eve-alpine:fc754568b1fa784544ff306e465c634811d1d6d9
 FROM ${BUILDER} as initrd
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
 COPY nlplug-findfs.c initramfs-init /tmp/
 RUN apk add --no-cache         \
-      mkinitfs=3.4.1-r1        \
-      gcc=8.3.0-r0             \
-      musl-dev=1.1.20-r5       \
-      linux-headers=4.18.13-r1 \
-      kmod-dev=24-r1           \
-      util-linux-dev=2.33-r0   \
-      cryptsetup1-dev=1.7.5-r4
+      mkinitfs=3.4.5-r3        \
+      gcc=9.3.0-r2             \
+      musl-dev=1.1.24-r9       \
+      linux-headers=5.4.5-r1   \
+      kmod-dev=27-r0           \
+      util-linux-dev=2.35.2-r0 \
+      cryptsetup-dev=2.3.2-r1
 RUN cc -Wall -Werror -g -D_GNU_SOURCE -DDEBUG -I/usr/include/blkid -I/usr/include/uuid /tmp/nlplug-findfs.c -lblkid  -lkmod  -L/lib -lcryptsetup -o /sbin/nlplug-findfs
 RUN mkinitfs -n -i /tmp/initramfs-init -o /initrd.gz
 
@@ -27,16 +27,16 @@ WORKDIR /out
 
 RUN mkdir -p /out/etc/apk /out/boot && cp -r /etc/apk/* /out/etc/apk/
 RUN apk add --no-cache --initdb -p /out \
-  busybox=1.29.3-r10        \
-  mtools=4.0.23-r0          \
+  busybox=1.31.1-r19        \
+  mtools=4.0.24-r0          \
   dosfstools=4.1-r1         \
-  libarchive-tools=3.3.3-r1 \
-  sgdisk=1.0.4-r0           \
-  e2fsprogs=~1.44.5         \
-  util-linux=2.33-r0        \
-  squashfs-tools=4.3-r5     \
-  coreutils=8.30-r0         \
-  tar=1.32-r0
+  libarchive-tools=3.4.3-r1 \
+  sgdisk=1.0.5-r0           \
+  e2fsprogs=1.45.6-r0       \
+  util-linux=2.35.2-r0      \
+  squashfs-tools=4.4-r0     \
+  coreutils=8.32-r0         \
+  tar=1.32-r1
 
 COPY make-raw install trampoline.grub.cfg grub.cfg.in UsbInvocationScript.txt /out/
 
