@@ -12,7 +12,9 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
+	"syscall"
 	"text/template"
 	"time"
 )
@@ -242,7 +244,7 @@ const qemuDiskTemplate = `
 [drive "drive-virtio-disk{{.DiskID}}"]
   file = "{{.FileLocation}}"
   format = "{{.Format | Fmt}}"
-  aio = "threads"
+  aio = "{{.AioType}}"
   cache = "writeback"
   if = "none"
 {{if .ReadOnly}}  readonly = "on"{{end}}
@@ -438,8 +440,29 @@ func (ctx kvmContext) CreateDomConfig(domainName string, config types.DomainConf
 	diskContext := struct {
 		Machine               string
 		PCIId, DiskID, SATAId int
+		AioType               string
 		types.DiskStatus
-	}{Machine: ctx.devicemodel, PCIId: 4, DiskID: 0, SATAId: 0}
+	}{Machine: ctx.devicemodel, PCIId: 4, DiskID: 0, SATAId: 0, AioType: "threads"}
+
+	var osver []string
+	var major, minor, patch int
+
+	osver = strings.SplitN(getOsVersion(), ".", 3)
+
+	if len(osver) >= 1 {
+		major, _ = strconv.Atoi(osver[0])
+	}
+	if len(osver) >= 2 {
+		minor, _ = strconv.Atoi(osver[1])
+	}
+	if len(osver) >= 3 {
+		patch, _ = strconv.Atoi(osver[2])
+	}
+
+	if major >= 5 && minor >= 4 && patch >= 72 {
+		diskContext.AioType = "io_uring"
+	}
+
 	t, _ = template.New("qemuDisk").
 		Funcs(template.FuncMap{"Fmt": func(f zconfig.Format) string { return strings.ToLower(f.String()) }}).
 		Parse(qemuDiskTemplate)
@@ -775,4 +798,17 @@ func getQmpExecutorSocket(domainName string) string {
 
 func getQmpListenerSocket(domainName string) string {
 	return kvmStateDir + domainName + "/listener.qmp"
+}
+
+func getOsVersion() string {
+	var uname syscall.Utsname
+
+	syscall.Uname(&uname)
+	b := make([]rune, len(uname.Release[:]))
+
+	for i, v := range uname.Release {
+		b[i] = rune(v)
+	}
+
+	return string(b)
 }
