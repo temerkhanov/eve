@@ -13,7 +13,6 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -424,6 +423,7 @@ func (ctx kvmContext) Setup(status types.DomainStatus, config types.DomainConfig
 
 	spec.AdjustMemLimit(config, qemuOverHead)
 	spec.Get().Process.Args = args
+    logI
 	if err := spec.CreateContainer(true); err != nil {
 		return logError("Failed to create container for task %s from %v: %v", status.DomainName, config, err)
 	}
@@ -452,27 +452,7 @@ func (ctx kvmContext) CreateDomConfig(domainName string, config types.DomainConf
 		PCIId, DiskID, SATAId int
 		AioType               string
 		types.DiskStatus
-	}{Machine: ctx.devicemodel, PCIId: 4, DiskID: 0, SATAId: 0, AioType: "threads"}
-
-	var osver []string
-	var major, minor, patch uint64
-
-	osver = strings.SplitN(getOsVersion(), ".", 3)
-
-	if len(osver) >= 1 {
-		major, _ = strconv.ParseUint(osver[0], 10, 8)
-	}
-	if len(osver) >= 2 {
-		minor, _ = strconv.ParseUint(osver[1], 10, 8)
-	}
-	if len(osver) >= 3 {
-		osver[2] = strings.Split(osver[2], "-")[0]
-		patch, _ = strconv.ParseUint(osver[2], 10, 8)
-	}
-
-	if minUringKernelTag <= kernelVersionTag(major, minor, patch) {
-		diskContext.AioType = "io_uring"
-	}
+	}{Machine: ctx.devicemodel, PCIId: 4, DiskID: 0, SATAId: 0, AioType: "io_uring"}
 
 	t, _ = template.New("qemuDisk").
 		Funcs(template.FuncMap{"Fmt": func(f zconfig.Format) string { return strings.ToLower(f.String()) }}).
