@@ -13,11 +13,11 @@
 # If you want to do that -- make sure to pass the following
 # argument to the docker build:
 #   --build-arg BUILD_CONTAINER=alpine@sha256:286be1c7f84de7cbae6cf8aa4e13b3ce2f2512353b3e734336e47e92de4a881e
-ARG BUILD_CONTAINER=alpine:3.7
+ARG BUILD_CONTAINER=alpine:3.12
 FROM ${BUILD_CONTAINER} as build
 
 # hadolint ignore=DL3018
-RUN apk add --no-cache curl make gcc g++ python libuuid iasl nasm util-linux-dev bash git util-linux
+RUN apk add --no-cache curl make gcc g++ python2 libuuid iasl nasm util-linux-dev bash git util-linux patch
 
 RUN git clone --depth 1 -b edk2-stable202005 https://github.com/tianocore/edk2.git /ws
 WORKDIR /ws
